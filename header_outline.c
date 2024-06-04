@@ -118,7 +118,7 @@ float headerAlgorithm(int num_of_cols, int num_of_rows, int img[][num_of_cols], 
             break;
         }
         // if we our going off the deep end then just stop
-        if(count >= 500 && count >= 500){
+        if(count >= 500 && distance >= 750){
             break;
         }
         // discourage going back from the tile that you came from
