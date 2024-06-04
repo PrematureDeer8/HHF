@@ -10,7 +10,7 @@ class Point(Structure):
 
 def main():
     libObject = cdll.LoadLibrary("./header_outline.so");
-    img_path = pathlib.Path.home() / "Desktop" / "receipt-scanner" / "scan.jpg";
+    img_path = pathlib.Path.home() / "Desktop" / "scan0001.jpg";
     invoice = Invoicer(str(img_path.absolute()));
     invoice.table_outline();
     invoice.align_table();
@@ -23,7 +23,8 @@ def main():
     cv.imwrite("thresh.jpg", thresh);
     # get starting point
     start_pt = np.unravel_index(np.argmin(thresh, axis=None), thresh.shape);
-    c_start_pt = Point(*start_pt);
+    print("Start point: \n", start_pt);
+    c_start_pt = Point(start_pt[1], start_pt[0]);
     rows, cols = thresh.shape;
     # flatten image before passing into C function
     flat = thresh.flatten();
@@ -38,7 +39,9 @@ def main():
     # have the algorithm try to follow the path without deviating to far from
     # the line of best fit
     # pass data into C function
-    print(libObject.headerAlgorithm( c_int(cols), c_int(rows), data,  pointer(c_start_pt),line_helper ));
+    libObject.headerAlgorithm.restype = c_float;
+    max_y = libObject.headerAlgorithm(c_int(cols), c_int(rows), data,  pointer(c_start_pt),line_helper );
+    print(max_y);
 
 if( __name__ == "__main__"):
     main();
