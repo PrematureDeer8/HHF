@@ -10,12 +10,12 @@ class Point(Structure):
 
 def main():
     libObject = cdll.LoadLibrary("./header_outline.so");
-    img_path = pathlib.Path.home() / "Desktop" / "scan0001.jpg";
-    invoice = Invoicer(str(img_path.absolute()));
+    img_path = pathlib.Path.home() / "Desktop" / "scan0003.jpg";
+    invoice = Invoicer(str(img_path.absolute()), debug=True);
     invoice.table_outline();
     invoice.align_table();
     invoice.readText();
-    invoice.getHeaders();
+    invoice.getCandidateHeaders();
 
     # grayscale and threshold the image
     grayscale = cv.cvtColor(invoice.table_only, cv.COLOR_BGR2GRAY);
@@ -23,7 +23,7 @@ def main():
     cv.imwrite("thresh.jpg", thresh);
     # get starting point
     start_pt = np.unravel_index(np.argmin(thresh, axis=None), thresh.shape);
-    print("Start point: \n", start_pt);
+    # print("Start point: \n", start_pt);
     c_start_pt = Point(start_pt[1], start_pt[0]);
     rows, cols = thresh.shape;
     # flatten image before passing into C function
@@ -40,8 +40,10 @@ def main():
     # the line of best fit
     # pass data into C function
     libObject.headerAlgorithm.restype = c_float;
-    max_y = libObject.headerAlgorithm(c_int(cols), c_int(rows), data,  pointer(c_start_pt),line_helper );
-    print(max_y);
+    avg_y = libObject.headerAlgorithm(c_int(cols), c_int(rows), data,  pointer(c_start_pt),line_helper );
+    # cv.line(invoice.table_only, (0, int(avg_y)), (int(invoice.table_only.shape[1]), int(avg_y)), (0,0,255), 2);
+    # cv.imwrite("dst.jpg", invoice.table_only);
+    print(invoice.getHeaders(avg_y));
 
 if( __name__ == "__main__"):
     main();
