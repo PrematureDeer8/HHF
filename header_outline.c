@@ -41,14 +41,14 @@ float headerAlgorithm(int num_of_cols, int num_of_rows, int img[][num_of_cols], 
         // and the starting point of the table
         obj_y = obj_x * m + b;
         dst_vect[0] = fabsf(obj_x - current.x);
-        dst_vect[1] = fabsf(obj_y - current.y);
+        dst_vect[1] = (obj_y - current.y);
         distance = sqrt(pow(dst_vect[0],2) + pow(dst_vect[1],2));
         // for the first iterations only step down (if possible)
         if(iterations < 20 && img[current.y + 1][current.x] == 0){
             current.y++;
         // the x distance is greater than the y 
         // try stepping to the right if the pixel is still black
-        }else if(dst_vect[0] > dst_vect[1] && img[current.y][current.x + 1] == 0){
+        }else if(dst_vect[0] > dst_vect[1]/5.0 && img[current.y][current.x + 1] == 0){
             // try to step in the x direction (if possible)
             current.x++;
             obj_x++;
@@ -128,7 +128,7 @@ float headerAlgorithm(int num_of_cols, int num_of_rows, int img[][num_of_cols], 
         img[current.y][current.x] = trail;
 
         // printf("X: %d Y: %d  X_dst : %.2f  Y_dst : %.2f\n",current.x, current.y, dst_vect[0],dst_vect[1]);
-        // if(iterations >= 200){
+        // if(iterations >= 1500){
         //     break;
         // }
         iterations++;
