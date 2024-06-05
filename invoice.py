@@ -127,13 +127,39 @@ class Invoicer:
         self.helper_line = np.polyfit(self.candidates_bbox[...,0], self.candidates_bbox[...,1],1);
         self.start_x = self.candidates_bbox[..., 0].min();
         self.end_x = self.candidates_bbox[..., 0].max();
-        # for our invoices we notice that the headers are bolded
-        # this means that there should be more black pixels in highlighted text box
-        # so find the ratio of black to white pixels in the text box
         if(self.debug):
             cv.imwrite("candidate.jpg", candidate_img);
     def getHeaders(self, header_y):
-        headers_bbox = np.array(sorted(self.bbox, key= lambda bbox: bbox[1] > header_y));
-        return headers;
-
+        header_img = self.table_only.copy();
+        self.header_bbox = np.array(list(filter(lambda bbox: bbox[1] < header_y, iter(self.bbox))));
+        self.header_labels = np.empty(shape=(self.header_bbox.shape[0]), dtype=f"<U{self.longest_str_detection}");
+        for i, header in enumerate(self.header_bbox):
+            header_img = cv.rectangle(header_img, tuple((header[:2] - header[2:]/2).astype(np.int32)), tuple((header[:2] + header[2:]/2).astype(np.int32)), (0,0,255), 1);
+            # find the corresponding labels to the candidate bounding box
+            self.header_labels[i] = self.labels[(header == self.bbox).all(axis=1)].squeeze();
+        if(self.debug):
+            cv.imwrite("headers.jpg", header_img);
+    def load_dict(self):
+        self.dict = {};
+        # organize our labels
+        keys = [];
+        header_bbox = self.header_bbox.copy();
+        header_labels = self.header_labels.copy();
+        # organize the headers into their respective keys
+        while(header_bbox.shape[0]):
+            # draw a vertical line
+            # then see if the vertical line intersect with 
+            # a header box
+            x = header_bbox[0][0];
+            # header_bbox = np.delete(header_bbox, i, axis=0);
+            bool1 = x < (header_bbox[...,0] + header_bbox[..., 2] * 0.5);
+            bool2 = x > (header_bbox[...,0] - header_bbox[..., 2] * 0.5);
+            key = "";
+            for string in header_labels[bool1 * bool2]:
+                key += string;
+            header_bbox = header_bbox[~(bool1 * bool2)];
+            header_labels = header_labels[~(bool1 * bool2)];
+            if(key not in keys):
+                keys.append(key);
+        print(keys);
 # cv.circle()
