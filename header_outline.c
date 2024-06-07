@@ -9,6 +9,17 @@ typedef struct Point {
     int y;
 } Point;
 
+typedef struct Rectangle {
+    int x1; //min x
+    int y1; //min y
+    int x2;
+    int y2;
+} Rectangle;
+
+typedef struct Column {
+    int x1;
+    int x2;
+} Column;
 
 float headerAlgorithm(int num_of_cols, int num_of_rows, int img[][num_of_cols], Point* start, float helper_line[]){
     // helper_line -> int (start x), int (stop x), int (m), int (b)
@@ -136,4 +147,52 @@ float headerAlgorithm(int num_of_cols, int num_of_rows, int img[][num_of_cols], 
     // printf("X: %d Y: %d \n", current.x, current.y);
     avg_y /= count;
     return avg_y;
+}
+
+
+Column columnAlgorithm(int cols, int img[][cols] ,Rectangle* bbox){
+    // essentially expand rectangle until it converges on a black perimeter
+    Rectangle expand = *bbox;
+    Column col;
+    bool go1 = true;
+    bool go2 = true;
+    int upanddown = 100; //how much we go up and down
+    int counter;
+    int threshold = 75; //number of black pixels up and down must be ge
+
+    while(true){
+        // go should be first because of short circuit
+        if(go1 && img[expand.y1][expand.x1--] == 0){
+            // count how many black pixels are above
+            counter = 0;
+            for(int i = 0; i < upanddown; i++){
+                if(img[expand.y1++][expand.x1] == 0 || img[expand.y1--][expand.x1]){
+                    counter++;
+                }
+            }
+            if(counter >= threshold){
+                go1 = false;
+            }
+
+        }
+        //same thing but for other side
+        if(go2 && img[expand.y2][expand.x2++] == 0){
+            counter = 0;
+            for(int i = 0; i < upanddown; i++){
+                if(img[expand.y2--][expand.x2] == 0 || img[expand.y2++][expand.x2] == 0){
+                    counter++;
+                }
+            }
+            if(counter >= threshold){
+                go2 = false;
+            }
+        }
+        if(!go2 && !go1){
+            break;
+        }
+
+    }
+    col.x1 = expand.x1;
+    col.x2 = expand.x2;
+    return col;
 }

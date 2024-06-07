@@ -132,6 +132,7 @@ class Invoicer:
     def getHeaders(self, header_y):
         header_img = self.table_only.copy();
         self.header_bbox = np.array(list(filter(lambda bbox: bbox[1] < header_y, iter(self.bbox))));
+        self.non_header_bbox = np.array(list(filter(lambda bbox: bbox[1] > header_y, iter(self.bbox))));
         self.header_labels = np.empty(shape=(self.header_bbox.shape[0]), dtype=f"<U{self.longest_str_detection}");
         for i, header in enumerate(self.header_bbox):
             header_img = cv.rectangle(header_img, tuple((header[:2] - header[2:]/2).astype(np.int32)), tuple((header[:2] + header[2:]/2).astype(np.int32)), (0,0,255), 1);
@@ -139,14 +140,14 @@ class Invoicer:
             self.header_labels[i] = self.labels[(header == self.bbox).all(axis=1)].squeeze();
         if(self.debug):
             cv.imwrite("headers.jpg", header_img);
-    def load_dict(self):
         self.dict = {};
         # organize our labels
-        keys = [];
+        self.keys = [];
+        bbox_header = [];
         header_bbox = self.header_bbox.copy();
         header_labels = self.header_labels.copy();
         # organize the headers into their respective keys
-        while(header_bbox.shape[0]):
+        while(header_bbox.shape[0]): 
             # draw a vertical line
             # then see if the vertical line intersect with 
             # a header box
@@ -157,9 +158,27 @@ class Invoicer:
             key = "";
             for string in header_labels[bool1 * bool2]:
                 key += string;
+            bboxs = header_bbox[(bool1 * bool2)];
+            x_min = (bboxs[..., 0] - bboxs[...,2] * 0.5).min();
+            x_max = (bboxs[..., 0] + bboxs[...,2] * 0.5).max();
+            y_min = (bboxs[..., 1] - bboxs[...,3] * 0.5).min();
+            y_max = (bboxs[..., 1] + bboxs[...,3] * 0.5).max();
+
+            bbox_header.append([x_min, y_min, x_max, y_max]);
             header_bbox = header_bbox[~(bool1 * bool2)];
             header_labels = header_labels[~(bool1 * bool2)];
-            if(key not in keys):
-                keys.append(key);
-        print(keys);
+            self.dict[key] = [];
+            self.keys.append(key);
+        self.header_bbox = np.array(bbox_header);
+    def load_dict(self, columns):
+
+        # print(vertical_x);
+        for bbox in self.non_header_bbox:
+            distance = np.abs(self.vertical_x - bbox[0]);
+            print(distance);
+            index = distance.argmin();
+            key = self.keys[index];
+            info = str(self.labels[(self.bbox == bbox).all(axis=1)].squeeze());
+            self.dict[key].append(info);
+
 # cv.circle()
