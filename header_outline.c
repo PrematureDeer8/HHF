@@ -159,14 +159,16 @@ Column columnAlgorithm(int cols, int img[][cols] ,Rectangle* bbox){
     int upanddown = 100; //how much we go up and down
     int counter;
     int threshold = 75; //number of black pixels up and down must be ge
+    int debug = 0;
 
     while(true){
         // go should be first because of short circuit
+        // printf("x1: %d  x2: %d\n", expand.x1, expand.x2);
         if(go1 && img[expand.y1][expand.x1--] == 0){
             // count how many black pixels are above
             counter = 0;
             for(int i = 0; i < upanddown; i++){
-                if(img[expand.y1++][expand.x1] == 0 || img[expand.y1--][expand.x1]){
+                if(img[expand.y1++][expand.x1] == 0 || img[expand.y1--][expand.x1] == 0){
                     counter++;
                 }
             }
