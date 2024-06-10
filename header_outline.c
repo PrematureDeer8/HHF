@@ -45,7 +45,7 @@ float headerAlgorithm(int num_of_cols, int num_of_rows, int img[][num_of_cols], 
     // printf("m: %.2f\n", helper_line[2]);
     // printf("b: %.2f\n", helper_line[3]);
     
-    printf("X: %d Y: %d\n",current.x, current.y);
+    // printf("X: %d Y: %d\n",current.x, current.y);
     while(true){
 
         // find the distance between the the helper line start point 
@@ -144,7 +144,7 @@ float headerAlgorithm(int num_of_cols, int num_of_rows, int img[][num_of_cols], 
         // }
         iterations++;
     }
-    // printf("X: %d Y: %d \n", current.x, current.y);
+    printf("X: %d Y: %d \n", current.x, current.y);
     avg_y /= count;
     return avg_y;
 }
@@ -160,6 +160,8 @@ Column columnAlgorithm(int cols, int img[][cols] ,Rectangle* bbox){
     int counter;
     int threshold = 75; //number of black pixels up and down must be ge
     int debug = 0;
+    int upy;
+    int downy;
 
     while(true){
         // go should be first because of short circuit
@@ -167,8 +169,10 @@ Column columnAlgorithm(int cols, int img[][cols] ,Rectangle* bbox){
         if(go1 && img[expand.y1][expand.x1--] == 0){
             // count how many black pixels are above
             counter = 0;
+            upy = expand.y1;
+            downy = expand.y1;
             for(int i = 0; i < upanddown; i++){
-                if(img[expand.y1++][expand.x1] == 0 || img[expand.y1--][expand.x1] == 0){
+                if(img[upy++][expand.x1] == 0 || img[downy--][expand.x1] == 0){
                     counter++;
                 }
             }
@@ -180,8 +184,10 @@ Column columnAlgorithm(int cols, int img[][cols] ,Rectangle* bbox){
         //same thing but for other side
         if(go2 && img[expand.y2][expand.x2++] == 0){
             counter = 0;
+            upy = expand.y2;
+            downy = expand.y2;
             for(int i = 0; i < upanddown; i++){
-                if(img[expand.y2--][expand.x2] == 0 || img[expand.y2++][expand.x2] == 0){
+                if(img[upy++][expand.x2] == 0 || img[downy--][expand.x2] == 0){
                     counter++;
                 }
             }

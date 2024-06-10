@@ -132,7 +132,9 @@ class Invoicer:
     def getHeaders(self, header_y):
         header_img = self.table_only.copy();
         self.header_bbox = np.array(list(filter(lambda bbox: bbox[1] < header_y, iter(self.bbox))));
+        self.header_bbox = np.array(sorted(self.header_bbox, key=lambda bbox: bbox[0])); # order headers from left to right
         self.non_header_bbox = np.array(list(filter(lambda bbox: bbox[1] > header_y, iter(self.bbox))));
+        self.non_header_bbox = np.array(sorted(self.non_header_bbox, key= lambda bbox: bbox[1]));
         self.header_labels = np.empty(shape=(self.header_bbox.shape[0]), dtype=f"<U{self.longest_str_detection}");
         for i, header in enumerate(self.header_bbox):
             header_img = cv.rectangle(header_img, tuple((header[:2] - header[2:]/2).astype(np.int32)), tuple((header[:2] + header[2:]/2).astype(np.int32)), (0,0,255), 1);
@@ -156,7 +158,8 @@ class Invoicer:
             bool1 = x < (header_bbox[...,0] + header_bbox[..., 2] * 0.5);
             bool2 = x > (header_bbox[...,0] - header_bbox[..., 2] * 0.5);
             key = "";
-            for string in header_labels[bool1 * bool2]:
+            # sort by height
+            for string, _ in sorted(zip(header_labels[bool1 * bool2], header_bbox[(bool1 * bool2)]), key=lambda a: a[1][1]):
                 key += string;
             bboxs = header_bbox[(bool1 * bool2)];
             x_min = (bboxs[..., 0] - bboxs[...,2] * 0.5).min();
@@ -170,15 +173,62 @@ class Invoicer:
             self.dict[key] = [];
             self.keys.append(key);
         self.header_bbox = np.array(bbox_header);
-    def load_dict(self, columns):
-
-        # print(vertical_x);
+    def load_dict(self, columns, thresh_v=10):
+        bias = 3.2;
+        change = True;
+        count = 1;
+        row = 0;
         for bbox in self.non_header_bbox:
-            distance = np.abs(self.vertical_x - bbox[0]);
-            print(distance);
-            index = distance.argmin();
-            key = self.keys[index];
+            if(change):
+                # take the first value of each row to be the mean
+                mean = bbox[1];
+                change = False;
+            variance = (bbox[1] - mean)**2 / (count);
+            if(variance > thresh_v):
+                change = True;
+                count = 0;
+                row += 1;
+            # print(variance);
             info = str(self.labels[(self.bbox == bbox).all(axis=1)].squeeze());
-            self.dict[key].append(info);
+            list_info = [];
+            for i, column in enumerate(columns):
+                if(bbox[0] > column.x1 and bbox[0] < column.x2):
+                    back_column = False;
+                    end_x = bbox[0] + bbox[2] * 0.5;
+                    start_x = bbox[0] - bbox[2] * 0.5;
+                    str_density = len(info)/bbox[2]; #density of string length/ box width
+                    # check if the the bbox goes over into the other column
+                    if((end_x - bias) > column.x2):
+                        str_col_len = abs(start_x - column.x2) * str_density; #string length in the column
+                        # put into the column over (presumably it will just be one column over)
+                        list_info = [info[:round(str_col_len)], info[round(str_col_len):]];
+                    elif((start_x + bias) < column.x1):
+                        str_col_len = abs(end_x - column.x1) * str_density;
+                        str_col_len = len(info) - str_col_len; 
+                        list_info = [info[round(str_col_len):], info[:round(str_col_len)]];
+                        back_column = True;
+                    if(len(list_info) == 0):
+                        # print(info);
+                        list_info = info.split(maxsplit=0);
+                        # print(info);
+                    for j, string in enumerate(list_info):
+                        if(back_column):
+                            key = self.keys[i - j];
+                        else:
+                            key = self.keys[i + j];
+                        if(variance < thresh_v and len(self.dict[key]) > row):
+                            self.dict[key][row] += string;
+                        else:
+                            diff = abs(len(self.dict[key]) - row);
+                            for i in range(diff):
+                                self.dict[key].append('');
+                            self.dict[key].append(string);
+            count += 1;
+        # make sure all arrays are the same length
+        max_length = len(self.dict[max(self.dict, key=lambda key: len(self.dict[key]))]);
+        for key in self.dict.keys():
+            diff = max_length - len(self.dict[key])
+            for i in range(diff):
+                self.dict[key].append('');
 
 # cv.circle()
