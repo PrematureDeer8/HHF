@@ -174,10 +174,11 @@ class Invoicer:
             self.keys.append(key);
         self.header_bbox = np.array(bbox_header);
     def load_dict(self, columns, thresh_v=10):
-        bias = 3.2;
+        bias = 1.2;
         change = True;
         count = 1;
         row = 0;
+        # print(self.labels);
         for bbox in self.non_header_bbox:
             if(change):
                 # take the first value of each row to be the mean
@@ -210,7 +211,7 @@ class Invoicer:
                     if(len(list_info) == 0):
                         # print(info);
                         list_info = info.split(maxsplit=0);
-                        # print(info);
+                    # print(list_info);
                     for j, string in enumerate(list_info):
                         if(back_column):
                             key = self.keys[i - j];
@@ -223,6 +224,7 @@ class Invoicer:
                             for i in range(diff):
                                 self.dict[key].append('');
                             self.dict[key].append(string);
+                    break;
             count += 1;
         # make sure all arrays are the same length
         max_length = len(self.dict[max(self.dict, key=lambda key: len(self.dict[key]))]);
@@ -231,4 +233,3 @@ class Invoicer:
             for i in range(diff):
                 self.dict[key].append('');
 
-# cv.circle()

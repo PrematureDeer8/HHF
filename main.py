@@ -18,11 +18,11 @@ class Column(Structure):
 
 def main():
     libObject = cdll.LoadLibrary("./header_outline.so");
-    img_path = pathlib.Path.home() / "Desktop" / "scan0003.jpg";
+    img_path = pathlib.Path.home() / "Desktop" / "scan.jpg";
     invoice = Invoicer(str(img_path.absolute()), debug=True);
     invoice.table_outline();
     invoice.align_table();
-    invoice.readText(min_size=4,width_ths=0.25);
+    invoice.readText(min_size=5,width_ths=0.35);
     invoice.getCandidateHeaders();
 
     # grayscale and threshold the image
@@ -59,8 +59,10 @@ def main():
     for i in range(invoice.header_bbox.shape[0]):
         # print(i);
         cv.rectangle(invoice.table_only, tuple(invoice.header_bbox[i][:2].astype(np.int32)), tuple(invoice.header_bbox[i][2:].astype(np.int32)), (0,255,0), 2);
-        rect = Rectangle(*invoice.header_bbox[i].astype(np.int32));
+        y_ctr = invoice.header_bbox[i,1::2].sum()/2;
+        rect = Rectangle(invoice.header_bbox[i][0].astype(np.int32), int(y_ctr),invoice.header_bbox[i][2].astype(np.int32), int(y_ctr));
         columns.append(libObject.columnAlgorithm(c_int(cols), data , pointer(rect)));
+        print(columns[-1].x1, columns[-1].x2);
     # rect = Rectangle(*invoice.header_bbox[12].astype(np.int32));
     # columns.append(libObject.columnAlgorithm(c_int(cols), data, pointer(rect)));
     # print("After column aglo")
