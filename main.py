@@ -22,7 +22,7 @@ def main():
     invoice = Invoicer(str(img_path.absolute()), debug=True);
     invoice.table_outline();
     invoice.align_table();
-    invoice.readText(min_size=5,width_ths=0.35);
+    invoice.readText(min_size=4,width_ths=0.30);
     invoice.getCandidateHeaders();
 
     # grayscale and threshold the image
@@ -62,7 +62,7 @@ def main():
         y_ctr = invoice.header_bbox[i,1::2].sum()/2;
         rect = Rectangle(invoice.header_bbox[i][0].astype(np.int32), int(y_ctr),invoice.header_bbox[i][2].astype(np.int32), int(y_ctr));
         columns.append(libObject.columnAlgorithm(c_int(cols), data , pointer(rect)));
-        print(columns[-1].x1, columns[-1].x2);
+        # print(columns[-1].x1, columns[-1].x2);
     # rect = Rectangle(*invoice.header_bbox[12].astype(np.int32));
     # columns.append(libObject.columnAlgorithm(c_int(cols), data, pointer(rect)));
     # print("After column aglo")
@@ -72,6 +72,9 @@ def main():
     cv.imwrite("dst.jpg", invoice.table_only)
     invoice.load_dict(columns);
     df = pd.DataFrame(data=invoice.dict);
+    print(df);
+    print(invoice.dict);
+    # print(df.dtypes);
     with pd.ExcelWriter("ardent.xlsx") as writer:
         df.to_excel(writer);
 

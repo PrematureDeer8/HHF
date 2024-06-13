@@ -13,6 +13,30 @@ class Invoicer:
         if(not self.imfp.exists()):
             raise ValueError(f"{self.imfp} does not exists!");
         self.img = cv.imread(str(self.imfp.absolute()));
+        self.dict = {"Order": [],
+                     "Order Date": [],
+                     "Invoice": [],
+                     "Invoice Date": [],
+                     "Customer Po": [],
+                     "Subinventory": [],
+                     "Type": [],
+                     "Customer": [],
+                     "Sales Representative": [],
+                     "City": [],
+                     "State": [],
+                     "Price": [],
+                     "Payment Term": [],
+                     "Cash Disc": [],
+                     "Net Price": [],
+                     "Line" : [],
+                     "% Rebates": [],
+                     "$ Rebates": [],
+                     "% Commissions Sales": [],
+                     "$ Commissions Sales": [],
+                     "Recieved": [],
+                     "Commission Payments": []
+                     };
+        self.keys = list(self.dict.keys());
         
     def table_outline(self, crop_amount=75, threshold=150):
         self.crop = self.img[crop_amount: -crop_amount, crop_amount:-crop_amount, :].copy();
@@ -90,8 +114,10 @@ class Invoicer:
             if(word in element):
                 counter+=1;
         return counter -1;
-    def readText(self, min_size=5, height_ths=1.0, width_ths=0.5, decoder="greedy"):
-        self.text_info = self.reader.readtext(self.table_only, min_size=min_size, decoder=decoder, height_ths=height_ths, width_ths=width_ths, canvas_size=max(self.table_only.shape));
+    def readText(self, min_size=5, height_ths=1.0, width_ths=0.5, decoder="greedy", block_list=r"[]|{",threshold=0.8):
+        self.text_info = self.reader.readtext(self.table_only, blocklist=block_list, min_size=min_size, decoder=decoder, height_ths=height_ths,\
+                                             width_ths=width_ths, canvas_size=max(self.table_only.shape), threshold=threshold, add_margin=0.03,\
+                                             );
         self.longest_str_detection = len(max(self.text_info, key=lambda info: len(info[1]))[1]);
         if(self.debug):
             annotated = self.table_only.copy();
@@ -142,9 +168,7 @@ class Invoicer:
             self.header_labels[i] = self.labels[(header == self.bbox).all(axis=1)].squeeze();
         if(self.debug):
             cv.imwrite("headers.jpg", header_img);
-        self.dict = {};
         # organize our labels
-        self.keys = [];
         bbox_header = [];
         header_bbox = self.header_bbox.copy();
         header_labels = self.header_labels.copy();
@@ -170,11 +194,9 @@ class Invoicer:
             bbox_header.append([x_min, y_min, x_max, y_max]);
             header_bbox = header_bbox[~(bool1 * bool2)];
             header_labels = header_labels[~(bool1 * bool2)];
-            self.dict[key] = [];
-            self.keys.append(key);
         self.header_bbox = np.array(bbox_header);
     def load_dict(self, columns, thresh_v=10):
-        bias = 1.2;
+        bias = 2.2;
         change = True;
         count = 1;
         row = 0;
@@ -193,7 +215,7 @@ class Invoicer:
             info = str(self.labels[(self.bbox == bbox).all(axis=1)].squeeze());
             list_info = [];
             for i, column in enumerate(columns):
-                if(bbox[0] > column.x1 and bbox[0] < column.x2):
+                if(bbox[0] >= column.x1 and bbox[0] < column.x2):
                     back_column = False;
                     end_x = bbox[0] + bbox[2] * 0.5;
                     start_x = bbox[0] - bbox[2] * 0.5;
@@ -211,7 +233,7 @@ class Invoicer:
                     if(len(list_info) == 0):
                         # print(info);
                         list_info = info.split(maxsplit=0);
-                    # print(list_info);
+                    #print(list_info);
                     for j, string in enumerate(list_info):
                         if(back_column):
                             key = self.keys[i - j];
@@ -222,14 +244,56 @@ class Invoicer:
                         else:
                             diff = abs(len(self.dict[key]) - row);
                             for i in range(diff):
-                                self.dict[key].append('');
+                                self.dict[key].append(None);
                             self.dict[key].append(string);
                     break;
             count += 1;
         # make sure all arrays are the same length
         max_length = len(self.dict[max(self.dict, key=lambda key: len(self.dict[key]))]);
-        for key in self.dict.keys():
-            diff = max_length - len(self.dict[key])
-            for i in range(diff):
-                self.dict[key].append('');
+        for k, key in enumerate(self.dict.keys()):
+            # clean up some of the data
+            if("date".upper() not in key.upper()):
+                for i, entry in enumerate(self.dict[key]):
+                    if(entry == None):
+                        continue;
+                    self.dict[key][i] = (entry.replace("/", "")).replace("\\", "");
+            # Dollar amounts
+            if(k == 11   or k == 14  or k == 19 \
+               or k == 21 or k == 17):
+                # convert any entries into their respective numerical values
+                for i, entry in enumerate(self.dict[key]):
+                    if(entry == None):
+                        self.dict[key][i] = 0;
+                        continue;
+                    num = 0;
+                    after_dec = 0;
+                    digit_count = 0;
+                    switch = True;
+                    negative = 1;
+                    for j in range(len(entry) - 1, -1, -1):
+                        letter = entry[j];
+                        if(letter == "(" or letter == ")" or letter == "-"):
+                            negative = -1;
+                        elif(letter.isdigit()):
+                            num += pow(10, digit_count) * float(letter);
+                            if(switch):
+                                after_dec += 1;
+                            digit_count += 1;
+                        else:
+                            switch = False;
+                    self.dict[key][i] = num / pow(10, after_dec) * negative;
+            elif(k == 0 or k == 2):
+                for i, entry in enumerate(self.dict[key]):
+                    try:
+                        # this is potentially dangerous
+                        self.dict[key][i] = int(self.dict[key][i]);
+                    except ValueError:
+                        pass;
+                        
+            diff = max_length - len(self.dict[key]);
+            if(diff):
+                for i in range(diff - 1):
+                    self.dict[key].append(None);
+            else:
+                self.dict[key].pop();
 
