@@ -3,8 +3,7 @@ from ctypes import *
 import cv2 as cv
 import numpy as np
 from invoice import Invoicer
-import pandas as pd
-
+from DataHandler import DataHandler
 
 
 class Point(Structure):
@@ -71,12 +70,8 @@ def main():
         cv.line(invoice.table_only, (int(column.x2), 0), (int(column.x2), invoice.table_only.shape[0]),(0,0,255), 2);
     cv.imwrite("dst.jpg", invoice.table_only)
     invoice.load_dict(columns);
-    df = pd.DataFrame(data=invoice.dict);
-    print(df);
-    print(invoice.dict);
-    # print(df.dtypes);
-    with pd.ExcelWriter("ardent.xlsx") as writer:
-        df.to_excel(writer);
-
+    data_handle = DataHandler(invoice.dict, existing_file="ardent.xlsx");
+    data_handle.write(filter={"Recieved": "== 'YES'","Commission Payments": "> 0"}, comparison=1);
+    
 if( __name__ == "__main__"):
     main();

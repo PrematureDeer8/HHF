@@ -288,7 +288,11 @@ class Invoicer:
                         # this is potentially dangerous
                         self.dict[key][i] = int(self.dict[key][i]);
                     except ValueError:
+                        print(f"Could not cast {self.dict[key]} to integer type! ")
                         pass;
+            elif(key == "Recieved"):
+                for i, entry in enumerate(self.dict[key]):
+                    self.dict[key][i] = entry.upper();
                         
             diff = max_length - len(self.dict[key]);
             if(diff):
