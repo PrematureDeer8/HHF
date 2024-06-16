@@ -17,7 +17,7 @@ class Column(Structure):
 
 def main():
     libObject = cdll.LoadLibrary("./header_outline.so");
-    img_path = pathlib.Path.home() / "Desktop" / "scan.jpg";
+    img_path = pathlib.Path.home() / "Desktop" / "scan0002.jpg";
     invoice = Invoicer(str(img_path.absolute()), debug=True);
     invoice.table_outline();
     invoice.align_table();
@@ -62,16 +62,13 @@ def main():
         rect = Rectangle(invoice.header_bbox[i][0].astype(np.int32), int(y_ctr),invoice.header_bbox[i][2].astype(np.int32), int(y_ctr));
         columns.append(libObject.columnAlgorithm(c_int(cols), data , pointer(rect)));
         # print(columns[-1].x1, columns[-1].x2);
-    # rect = Rectangle(*invoice.header_bbox[12].astype(np.int32));
-    # columns.append(libObject.columnAlgorithm(c_int(cols), data, pointer(rect)));
-    # print("After column aglo")
     for column in columns:
         cv.line(invoice.table_only, (int(column.x1), 0), (int(column.x1), invoice.table_only.shape[0]),(0,0,255), 2);
         cv.line(invoice.table_only, (int(column.x2), 0), (int(column.x2), invoice.table_only.shape[0]),(0,0,255), 2);
     cv.imwrite("dst.jpg", invoice.table_only)
     invoice.load_dict(columns);
     data_handle = DataHandler(invoice.dict, existing_file="ardent.xlsx");
-    data_handle.write(filter={"Recieved": "== 'YES'","Commission Payments": "> 0"}, comparison=1);
+    data_handle.write(filter={"Recieved": "== 'YES'","Commission Payments": "> 0"}, comparison=0);
     
 if( __name__ == "__main__"):
     main();

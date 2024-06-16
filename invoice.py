@@ -4,6 +4,7 @@ import argparse
 import pathlib
 import numpy as np
 import string
+from dateutil.parser import parse
 
 class Invoicer:
     def __init__(self, image_file, debug=False):
@@ -257,6 +258,10 @@ class Invoicer:
                     if(entry == None):
                         continue;
                     self.dict[key][i] = (entry.replace("/", "")).replace("\\", "");
+            else:
+                # have the dates be date objects
+                for i, entry in enumerate(self.dict[key]):
+                    self.dict[key][i] = parse(self.dict[key][i]).date();
             # Dollar amounts
             if(k == 11   or k == 14  or k == 19 \
                or k == 21 or k == 17):
@@ -288,7 +293,7 @@ class Invoicer:
                         # this is potentially dangerous
                         self.dict[key][i] = int(self.dict[key][i]);
                     except ValueError:
-                        print(f"Could not cast {self.dict[key]} to integer type! ")
+                        print(f"Could not cast {self.dict[key]} to integer type!")
                         pass;
             elif(key == "Recieved"):
                 for i, entry in enumerate(self.dict[key]):
