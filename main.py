@@ -17,9 +17,9 @@ class Column(Structure):
 
 def main():
     libObject = cdll.LoadLibrary("./header_outline.so");
-    img_path = pathlib.Path.home() / "Desktop" / "scan0002.jpg";
+    img_path = pathlib.Path.home() / "Desktop" / "scan0004.jpg";
     invoice = Invoicer(str(img_path.absolute()), debug=True);
-    invoice.table_outline();
+    invoice.table_outline(crop_amount=0);
     invoice.align_table();
     invoice.readText(min_size=4,width_ths=0.30);
     invoice.getCandidateHeaders();
@@ -29,8 +29,10 @@ def main():
     ret, thresh = cv.threshold(grayscale, 180, 255, 0);
     cv.imwrite("thresh.jpg", thresh);
     # get starting point
-    start_pt = np.unravel_index(np.argmin(thresh, axis=None), thresh.shape);
-    # print("Start point: \n", start_pt);
+    flatten = thresh.flatten();
+    zero_only = flatten == 0;
+    indices = np.arange(len(flatten));
+    start_pt = np.unravel_index(min(indices[zero_only], key=lambda index: index // thresh.shape[0] + index % thresh.shape[1]), thresh.shape);
     c_start_pt = Point(start_pt[1], start_pt[0]);
     rows, cols = thresh.shape;
     # flatten image before passing into C function
@@ -48,8 +50,8 @@ def main():
     # pass data into C function
     libObject.headerAlgorithm.restype = c_float;
     avg_y = libObject.headerAlgorithm(c_int(cols), c_int(rows), data,  pointer(c_start_pt),line_helper );
-    # cv.line(invoice.table_only, (0, int(avg_y)), (int(invoice.table_only.shape[1]), int(avg_y)), (0,0,255), 2);
-    # cv.imwrite("dst.jpg", invoice.table_only);
+    cv.line(invoice.table_only, (0, int(avg_y)), (int(invoice.table_only.shape[1]), int(avg_y)), (0,0,255), 2);
+    cv.imwrite("dst.jpg", invoice.table_only);
     invoice.getHeaders(avg_y);
     libObject.columnAlgorithm.restype = Column;
     columns = [];
@@ -67,7 +69,7 @@ def main():
         cv.line(invoice.table_only, (int(column.x2), 0), (int(column.x2), invoice.table_only.shape[0]),(0,0,255), 2);
     cv.imwrite("dst.jpg", invoice.table_only)
     invoice.load_dict(columns);
-    data_handle = DataHandler(invoice.dict, existing_file="ardent.xlsx");
+    data_handle = DataHandler(invoice.dict);
     data_handle.write(filter={"Recieved": "== 'YES'","Commission Payments": "> 0"}, comparison=0);
     
 if( __name__ == "__main__"):
