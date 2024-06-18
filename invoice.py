@@ -1,10 +1,11 @@
 import easyocr
 import cv2 as cv
-import argparse
+import pandas as pd
 import pathlib
 import numpy as np
 import string
-from dateutil.parser import parse
+from dateutil import parser
+from datetime import datetime
 
 class Invoicer:
     def __init__(self, image_file, debug=False):
@@ -40,7 +41,10 @@ class Invoicer:
         self.keys = list(self.dict.keys());
         
     def table_outline(self, crop_amount=75, threshold=150):
-        self.crop = self.img[crop_amount: -crop_amount, crop_amount:-crop_amount, :].copy();
+        if(crop_amount):
+            self.crop = self.img[crop_amount: -crop_amount, crop_amount:-crop_amount, :].copy();
+        else:
+            self.crop = self.img.copy();
         grayscale = cv.cvtColor(self.crop, cv.COLOR_BGR2GRAY);
         ret, thresh = cv.threshold(grayscale, threshold, 255, 0);
         cond1 = thresh == 0;
@@ -70,7 +74,7 @@ class Invoicer:
         #[m, b]
         self.line_equations = np.zeros((3,2));
         sort_tb = np.array(sorted(self.table_contours, key= lambda points: points[0] + points[1]));
-        sort_tr = np.array(sorted(self.table_contours, key=lambda points: points[1]/(points[0] + 1e-6)))
+        sort_tr = np.array(sorted(self.table_contours, key=lambda points: (points[1] + 1)/pow(points[0] + 1e-6, 2)))
         self.points = np.zeros(shape=(4,2)).astype(np.int32);
         # taking the mean of the edge points
         # since the max and min both give the edge of the cropped 
@@ -115,7 +119,7 @@ class Invoicer:
             if(word in element):
                 counter+=1;
         return counter -1;
-    def readText(self, min_size=5, height_ths=1.0, width_ths=0.5, decoder="greedy", block_list=r"[]|{",threshold=0.8):
+    def readText(self, min_size=5, height_ths=1.0, width_ths=0.5, decoder="greedy", block_list=r"[]|{_",threshold=0.8):
         self.text_info = self.reader.readtext(self.table_only, blocklist=block_list, min_size=min_size, decoder=decoder, height_ths=height_ths,\
                                              width_ths=width_ths, canvas_size=max(self.table_only.shape), threshold=threshold, add_margin=0.03,\
                                              );
@@ -196,7 +200,7 @@ class Invoicer:
             header_bbox = header_bbox[~(bool1 * bool2)];
             header_labels = header_labels[~(bool1 * bool2)];
         self.header_bbox = np.array(bbox_header);
-    def load_dict(self, columns, thresh_v=10):
+    def load_dict(self, columns, thresh_v=15):
         bias = 2.2;
         change = True;
         count = 1;
@@ -214,6 +218,7 @@ class Invoicer:
                 row += 1;
             # print(variance);
             info = str(self.labels[(self.bbox == bbox).all(axis=1)].squeeze());
+            # print(info);
             list_info = [];
             for i, column in enumerate(columns):
                 if(bbox[0] >= column.x1 and bbox[0] < column.x2):
@@ -234,7 +239,9 @@ class Invoicer:
                     if(len(list_info) == 0):
                         # print(info);
                         list_info = info.split(maxsplit=0);
-                    #print(list_info);
+                    # print(list_info);
+                    # print(bbox);
+                    # print(column.x1, column.x2)
                     for j, string in enumerate(list_info):
                         if(back_column):
                             key = self.keys[i - j];
@@ -261,7 +268,19 @@ class Invoicer:
             else:
                 # have the dates be date objects
                 for i, entry in enumerate(self.dict[key]):
-                    self.dict[key][i] = parse(self.dict[key][i]).date();
+                    try:
+                        # print(self.dict[key])
+                        self.dict[key][i] = parser.parse(self.dict[key][i]).date();
+                    except parser.ParserError:
+                        # try to parse the date manually (we know)
+                        # the order should be %m/%d/%Y
+                        # the ocr probably messed up parsing the slashes ('/')
+                        # so just get the numbers instead and the order should just be %m/%d/%Y
+                        new_date_str = '';
+                        for letter in self.dict[key][i]:
+                            if(letter.isnumeric()):
+                                new_date_str += letter;
+                        self.dict[key][i] = datetime.strptime(new_date_str, "%m%d%Y").date();
             # Dollar amounts
             if(k == 11   or k == 14  or k == 19 \
                or k == 21 or k == 17):
@@ -291,18 +310,31 @@ class Invoicer:
                 for i, entry in enumerate(self.dict[key]):
                     try:
                         # this is potentially dangerous
-                        self.dict[key][i] = int(self.dict[key][i]);
+                        if(self.dict[key][i] is not None):
+                            self.dict[key][i] = int(self.dict[key][i]);
+                        else:
+                            print(self.dict[key]);
+                            print(f"None value for key: {key} at index {i}");
+                            self.dict[key][i] = 0;
                     except ValueError:
-                        print(f"Could not cast {self.dict[key]} to integer type!")
-                        pass;
+                        print(f"Could not cast {self.dict[key][i]} to integer type!");
+                        print(f"Reverting to only casting numbers!");
+                        numeric_only = '';
+                        for letter in self.dict[key][i]:
+                            if(letter.isnumeric()):
+                                numeric_only += letter;
+                        self.dict[key][i] = int(self.dict[key][i]);
             elif(key == "Recieved"):
                 for i, entry in enumerate(self.dict[key]):
                     self.dict[key][i] = entry.upper();
                         
             diff = max_length - len(self.dict[key]);
             if(diff):
-                for i in range(diff - 1):
+                for i in range(diff):
                     self.dict[key].append(None);
-            else:
+        # dont remove last row if it is not a total 
+        # print(self.dict);
+        count_notna = pd.Series(data=[self.dict[key][max_length - 1] for key in self.dict.keys()]).count();
+        if(not round(count_notna / len(self.dict.keys()))):
+            for key in self.dict.keys(): 
                 self.dict[key].pop();
-

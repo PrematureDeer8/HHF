@@ -17,60 +17,68 @@ class Column(Structure):
 
 def main():
     libObject = cdll.LoadLibrary("./header_outline.so");
-    img_path = pathlib.Path.home() / "Desktop" / "scan0004.jpg";
-    invoice = Invoicer(str(img_path.absolute()), debug=True);
-    invoice.table_outline(crop_amount=0);
-    invoice.align_table();
-    invoice.readText(min_size=4,width_ths=0.30);
-    invoice.getCandidateHeaders();
+    folder_path = pathlib.Path.home() / "Desktop" / "ardent_inv_scans";
+    for count, img_path in enumerate(folder_path.iterdir()): 
+        print(img_path);
+        invoice = Invoicer(str(img_path.absolute()), debug=True);
+        invoice.table_outline(crop_amount=0);
+        invoice.align_table();
+        invoice.readText(min_size=4,width_ths=0.25);
+        invoice.getCandidateHeaders();
 
-    # grayscale and threshold the image
-    grayscale = cv.cvtColor(invoice.table_only, cv.COLOR_BGR2GRAY);
-    ret, thresh = cv.threshold(grayscale, 180, 255, 0);
-    cv.imwrite("thresh.jpg", thresh);
-    # get starting point
-    flatten = thresh.flatten();
-    zero_only = flatten == 0;
-    indices = np.arange(len(flatten));
-    start_pt = np.unravel_index(min(indices[zero_only], key=lambda index: index // thresh.shape[0] + index % thresh.shape[1]), thresh.shape);
-    c_start_pt = Point(start_pt[1], start_pt[0]);
-    rows, cols = thresh.shape;
-    # flatten image before passing into C function
-    flat = thresh.flatten();
-    # make an array compatible with C
-    int_arr = c_int * len(flat);
-    data = int_arr(*flat);
-    # make line_helper array
-    float_arr = c_float * 4;
-    # xs, xe, m, b
-    line_helper = float_arr(invoice.start_x, invoice.end_x, *invoice.helper_line);
-    # draw best line of fit against a small amount of candidate headers
-    # have the algorithm try to follow the path without deviating to far from
-    # the line of best fit
-    # pass data into C function
-    libObject.headerAlgorithm.restype = c_float;
-    avg_y = libObject.headerAlgorithm(c_int(cols), c_int(rows), data,  pointer(c_start_pt),line_helper );
-    cv.line(invoice.table_only, (0, int(avg_y)), (int(invoice.table_only.shape[1]), int(avg_y)), (0,0,255), 2);
-    cv.imwrite("dst.jpg", invoice.table_only);
-    invoice.getHeaders(avg_y);
-    libObject.columnAlgorithm.restype = Column;
-    columns = [];
-    # invoice.load_dict();
-    # print("Column algorithm")
-    for i in range(invoice.header_bbox.shape[0]):
-        # print(i);
-        cv.rectangle(invoice.table_only, tuple(invoice.header_bbox[i][:2].astype(np.int32)), tuple(invoice.header_bbox[i][2:].astype(np.int32)), (0,255,0), 2);
-        y_ctr = invoice.header_bbox[i,1::2].sum()/2;
-        rect = Rectangle(invoice.header_bbox[i][0].astype(np.int32), int(y_ctr),invoice.header_bbox[i][2].astype(np.int32), int(y_ctr));
-        columns.append(libObject.columnAlgorithm(c_int(cols), data , pointer(rect)));
-        # print(columns[-1].x1, columns[-1].x2);
-    for column in columns:
-        cv.line(invoice.table_only, (int(column.x1), 0), (int(column.x1), invoice.table_only.shape[0]),(0,0,255), 2);
-        cv.line(invoice.table_only, (int(column.x2), 0), (int(column.x2), invoice.table_only.shape[0]),(0,0,255), 2);
-    cv.imwrite("dst.jpg", invoice.table_only)
-    invoice.load_dict(columns);
-    data_handle = DataHandler(invoice.dict);
-    data_handle.write(filter={"Recieved": "== 'YES'","Commission Payments": "> 0"}, comparison=0);
-    
+        # grayscale and threshold the image
+        grayscale = cv.cvtColor(invoice.table_only, cv.COLOR_BGR2GRAY);
+        ret, thresh = cv.threshold(grayscale, 180, 255, 0);
+        cv.imwrite("thresh.jpg", thresh);
+        # get starting point
+        flat = thresh.flatten();
+        zero_only = flat == 0;
+        indices = np.arange(len(flat));
+        start_pt = np.unravel_index(min(indices[zero_only], key=lambda index: (index // thresh.shape[0]) + 1.2 * (index % thresh.shape[1])), thresh.shape);
+        print(start_pt);
+        c_start_pt = Point(start_pt[1], start_pt[0]);
+        rows, cols = thresh.shape;
+        # flatten image before passing into C function
+        # make an array compatible with C
+        int_arr = c_int * len(flat);
+        data = int_arr(*flat);
+        # make line_helper array
+        float_arr = c_float * 4;
+        # xs, xe, m, b
+        line_helper = float_arr(invoice.start_x, invoice.end_x, *invoice.helper_line);
+        # draw best line of fit against a small amount of candidate headers
+        # have the algorithm try to follow the path without deviating to far from
+        # the line of best fit
+        # pass data into C function
+        libObject.headerAlgorithm.restype = c_float;
+        avg_y = libObject.headerAlgorithm(c_int(cols), c_int(rows), data,  pointer(c_start_pt),line_helper );
+        cv.line(invoice.table_only, (0, int(avg_y)), (int(invoice.table_only.shape[1]), int(avg_y)), (0,0,255), 2);
+        cv.imwrite("dst.jpg", invoice.table_only);
+        invoice.getHeaders(avg_y);
+        libObject.columnAlgorithm.restype = Column;
+        columns = [];
+        # invoice.load_dict();
+        # print("Column algorithm")
+        for i in range(invoice.header_bbox.shape[0]):
+            # print(i);
+            cv.rectangle(invoice.table_only, tuple(invoice.header_bbox[i][:2].astype(np.int32)), tuple(invoice.header_bbox[i][2:].astype(np.int32)), (0,255,0), 2);
+            y_ctr = invoice.header_bbox[i,1::2].sum()/2;
+            rect = Rectangle(invoice.header_bbox[i][0].astype(np.int32), int(y_ctr),invoice.header_bbox[i][2].astype(np.int32), int(y_ctr));
+            # make sure this not a duplicate column (they should happen consecutively)
+            column = libObject.columnAlgorithm(c_int(cols), data , pointer(rect))
+            if(i == 0 or (abs(column.x1 - columns[-1].x1) > 5 or abs(column.x2 - columns[-1].x2) > 5)):
+                columns.append(column);
+            # print(columns[-1].x1, columns[-1].x2);
+        for column in columns:
+            cv.line(invoice.table_only, (int(column.x1), 0), (int(column.x1), invoice.table_only.shape[0]),(0,0,255), 2);
+            cv.line(invoice.table_only, (int(column.x2), 0), (int(column.x2), invoice.table_only.shape[0]),(0,0,255), 2);
+        cv.imwrite("dst.jpg", invoice.table_only)
+        invoice.load_dict(columns);
+        if(count):
+            data_handle = DataHandler(invoice.dict, "ardent.xlsx");
+        else:
+            data_handle = DataHandler(invoice.dict);
+        data_handle.write(filter={"Recieved": "== 'YES'","Commission Payments": "!= 0"}, comparison=0);
+        
 if( __name__ == "__main__"):
     main();
