@@ -34,9 +34,12 @@ float headerAlgorithm(int num_of_cols, int num_of_rows, int img[][num_of_cols], 
     float b = helper_line[3];
     float distance;
     int count = 0;
+    Point baton[2];
     Point current;
     current.x = start->x;
     current.y = start->y;
+    baton[0].x = current.x;
+    baton[0].y = current.y;
 
     // printf("X: %d\n", current.x);
     // printf("Y: %d\n", current.y);
@@ -55,11 +58,11 @@ float headerAlgorithm(int num_of_cols, int num_of_rows, int img[][num_of_cols], 
         dst_vect[1] = (obj_y - current.y);
         distance = sqrt(pow(dst_vect[0],2) + pow(dst_vect[1],2));
         // for the first iterations only step down (if possible)
-        if(iterations < 20 && img[current.y + 1][current.x] == 0){
+        if(iterations < 50 && img[current.y + 1][current.x] == 0){
             current.y++;
         // the x distance is greater than the y 
         // try stepping to the right if the pixel is still black
-        }else if(dst_vect[0] > dst_vect[1]/5.0 && img[current.y][current.x + 1] == 0){
+        }else if(dst_vect[0] > dst_vect[1]/2.0 && img[current.y][current.x + 1] == 0){
             // try to step in the x direction (if possible)
             current.x++;
             obj_x++;
@@ -136,10 +139,17 @@ float headerAlgorithm(int num_of_cols, int num_of_rows, int img[][num_of_cols], 
             break;
         }
         // discourage going back from the tile that you came from
-        img[current.y][current.x] = trail;
-
+        // wait until the next move to do this
+        if(iterations % 2){
+            img[baton[0].y][baton[0].x] = trail;
+            baton[0].x = baton[1].x;
+            baton[0].y = baton[1].y;
+        }else{
+            baton[1].x = current.x;
+            baton[1].y = current.y;
+        }
         // printf("X: %d Y: %d  X_dst : %.2f  Y_dst : %.2f\n",current.x, current.y, dst_vect[0],dst_vect[1]);
-        // if(iterations >= 1500){
+        // if(iterations >= 2500){
         //     break;
         // }
         iterations++;
@@ -162,6 +172,9 @@ Column columnAlgorithm(int cols, int img[][cols] ,Rectangle* bbox){
     int debug = 0;
     int upy;
     int downy;
+    // incase the bounding box is slighty off
+    expand.x2 -= 4;
+    expand.x1 += 4;
 
     while(true){
         // go should be first because of short circuit
@@ -203,4 +216,9 @@ Column columnAlgorithm(int cols, int img[][cols] ,Rectangle* bbox){
     col.x1 = expand.x1;
     col.x2 = expand.x2;
     return col;
+}
+// how well do these strings overlap 
+float string_match(char* str1, char* str2){
+    // alignment (number of letters in the same spot)
+    
 }
