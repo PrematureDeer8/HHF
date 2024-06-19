@@ -18,7 +18,10 @@ class Column(Structure):
 def main():
     libObject = cdll.LoadLibrary("./header_outline.so");
     folder_path = pathlib.Path.home() / "Desktop" / "ardent_inv_scans";
-    for count, img_path in enumerate(folder_path.iterdir()): 
+    for count, img_path in enumerate(folder_path.iterdir()):
+        if(img_path.suffix != ".jpg"):
+            continue;
+        # img_path = pathlib.Path("/Users/gabrieltorres/Desktop/ardent_inv_scans/scan0008.jpg");
         print(img_path);
         invoice = Invoicer(str(img_path.absolute()), debug=True);
         invoice.table_outline(crop_amount=0);
@@ -28,7 +31,9 @@ def main():
 
         # grayscale and threshold the image
         grayscale = cv.cvtColor(invoice.table_only, cv.COLOR_BGR2GRAY);
-        ret, thresh = cv.threshold(grayscale, 180, 255, 0);
+        # blur before thresholding
+        blur = cv.blur(grayscale, (7,3));
+        ret, thresh = cv.threshold(blur, 180, 255, 0);
         cv.imwrite("thresh.jpg", thresh);
         # get starting point
         flat = thresh.flatten();
@@ -74,11 +79,12 @@ def main():
             cv.line(invoice.table_only, (int(column.x2), 0), (int(column.x2), invoice.table_only.shape[0]),(0,0,255), 2);
         cv.imwrite("dst.jpg", invoice.table_only)
         invoice.load_dict(columns);
+        # print(invoice.dict);
         if(count):
             data_handle = DataHandler(invoice.dict, "ardent.xlsx");
         else:
             data_handle = DataHandler(invoice.dict);
         data_handle.write(filter={"Recieved": "== 'YES'","Commission Payments": "!= 0"}, comparison=0);
-        
+        # break;
 if( __name__ == "__main__"):
     main();

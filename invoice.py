@@ -315,7 +315,7 @@ class Invoicer:
                         else:
                             print(self.dict[key]);
                             print(f"None value for key: {key} at index {i}");
-                            self.dict[key][i] = 0;
+                            # self.dict[key][i] = 0;
                     except ValueError:
                         print(f"Could not cast {self.dict[key][i]} to integer type!");
                         print(f"Reverting to only casting numbers!");
@@ -326,7 +326,8 @@ class Invoicer:
                         self.dict[key][i] = int(self.dict[key][i]);
             elif(key == "Recieved"):
                 for i, entry in enumerate(self.dict[key]):
-                    self.dict[key][i] = entry.upper();
+                    if(isinstance(self.dict[key], str)):
+                        self.dict[key][i] = entry.upper();
                         
             diff = max_length - len(self.dict[key]);
             if(diff):

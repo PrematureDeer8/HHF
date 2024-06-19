@@ -16,21 +16,26 @@ class DataHandler:
 
         else:
             self.df = self.new_data;
+        # make sure commission payments are NaN
+        self.df["Commission Payments"] = pd.to_numeric(self.df["Commission Payments"]);
     # write to excel file
     def write(self, filter=None, file_name="ardent.xlsx", comparison=1):
         bool_mat = pd.Series(data=[1 for i in range(len(self.df))], dtype=bool);
         if(not comparison):
             bool_mat = ~bool_mat;
+        # print(bool_mat);
         if(filter is not None):
             # filter will be a dictionary with key value pairs
             for key in filter.keys():
                 if(comparison):
                     # and comparison
-                    bool_mat *= eval("self.df[key]" + filter[key]);
+                    bool_mat *= eval("self.df[key] " + filter[key]);
                 else:
                     # or comparison
-                    bool_mat += eval("self.df[key]" + filter[key]);
-        
+                    bool_mat += eval("self.df[key] " + filter[key]);
+                    # print(pd.DataFrame(data=(bool_mat, self.df[key])));
+                # nan values wont be considered (by default)
+                bool_mat *= pd.notna(self.df[key]);
         with pd.ExcelWriter(file_name, date_format="MM/DD/YYYY") as writer:
             self.df[bool_mat].to_excel(writer);
     def compare(self, comparison_file_path):
@@ -66,6 +71,6 @@ class DataHandler:
             bool1 = bool1.astype(dtype=bool);
             # there is a match (should only be one!)
             # print(bool1);
-            if(bool1.sum()): 
-                print("Found match for: ")
+            if(not bool1.sum()): 
+                print("Did not find match for: ")
                 print(self.cdf.loc[i]);
