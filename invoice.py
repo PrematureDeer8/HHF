@@ -270,7 +270,7 @@ class Invoicer:
                 for i, entry in enumerate(self.dict[key]):
                     try:
                         # print(self.dict[key])
-                        self.dict[key][i] = parser.parse(self.dict[key][i]).date();
+                        self.dict[key][i] = parser.parse(self.dict[key][i], dayfirst=False, yearfirst=False).date();
                     except parser.ParserError:
                         # try to parse the date manually (we know)
                         # the order should be %m/%d/%Y
