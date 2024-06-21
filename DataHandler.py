@@ -1,5 +1,6 @@
 import pandas as pd
 import pathlib
+import numpy as np
 
 class DataHandler:
     def __init__(self, dictionary, existing_file=None) -> None:
@@ -38,7 +39,7 @@ class DataHandler:
                 bool_mat *= pd.notna(self.df[key]);
         with pd.ExcelWriter(file_name, date_format="MM/DD/YYYY") as writer:
             self.df[bool_mat].to_excel(writer);
-    def compare(self, comparison_file_path):
+    def compare(self, comparison_file_path, file_name="unpaid.xlsx", price_diff=0.05):
         cdf = pd.read_excel(comparison_file_path, skiprows=12, usecols=lambda col: "unnamed" not in col.lower());
         # clean the cdf up a little bit
         # the total number of transactions is at the end of the close date column so get that number
@@ -52,6 +53,7 @@ class DataHandler:
         
         # try to match every row in the cdf a row in the df
         # match by close date and invoice number for now
+        unmatched = [];
         for i, (date, amnt, invoice) in enumerate(zip(self.cdf["Close Date"], self.cdf["Invoiced Amount"], self.cdf["Invoice Number"])):
             cmp = pd.Series(data=[date, amnt, invoice]);
             bool1 = pd.Series(data=[1] * len(self.df), dtype=bool);
@@ -63,14 +65,33 @@ class DataHandler:
                             bool1 *= (item == self.df["Invoice Date"]);
                         # invoice amount
                         case 1:
-                            bool1 *= (item == self.df["Net Price"]);
+                            # price or net price (have to match)
+                            # or be less than the price difference
+                            bool1 *= ((self.df["Net Price"] - item).abs() < price_diff) + ((self.df["Price"] - item).abs() < price_diff);
                         # invoice number
                         case 2:
                             bool1 *= (item == self.df["Invoice"]);
                 bool1.fillna(0, inplace=True);
             bool1 = bool1.astype(dtype=bool);
-            # there is a match (should only be one!)
-            # print(bool1);
             if(not bool1.sum()): 
-                print("Did not find match for: ")
-                print(self.cdf.loc[i]);
+                unmatched.append(self.cdf.loc[i]);
+        # print(self.df[~matching]);
+        self.unmmatched = pd.DataFrame(unmatched);
+        with pd.ExcelWriter(file_name, date_format="MM/DD/YYYY") as writer:
+            self.unmmatched.to_excel(writer);
+    def merge_invoice(self):
+        for invoice_id in self.df["Invoice"]:
+            bool_mat = np.bool_([0] * len(self.df));
+            # if both the invoice id and order number match 
+            # then add the two net prices (and commission)...
+            bool_mat += ((invoice_id == self.df["Invoice"])).to_numpy();
+            if(bool_mat.sum() > 1):
+                zero_index = self.df[bool_mat].index[0];
+                for index in self.df[bool_mat].index[1:]:
+                    # we assume that the % commission  stays the same for these invoices (among other things)
+                    for key in ["Price", "Net Price", "$ Commissions Sales", "Commission Payments"]:
+                        self.df.loc[zero_index, key] += self.df.loc[index, key];
+                    self.df.drop(axis=0, index=index, inplace=True);
+        self.df.reset_index(inplace=True);
+
+
