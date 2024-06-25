@@ -165,7 +165,7 @@ class Invoicer:
         self.header_bbox = np.array(list(filter(lambda bbox: bbox[1] < header_y, iter(self.bbox))));
         self.header_bbox = np.array(sorted(self.header_bbox, key=lambda bbox: bbox[0])); # order headers from left to right
         self.non_header_bbox = np.array(list(filter(lambda bbox: bbox[1] > header_y, iter(self.bbox))));
-        self.non_header_bbox = np.array(sorted(self.non_header_bbox, key= lambda bbox: bbox[1]));
+        self.non_header_bbox = np.array(sorted(self.non_header_bbox, key= lambda bbox: bbox[1])); # sort by height and left to tright
         self.header_labels = np.empty(shape=(self.header_bbox.shape[0]), dtype=f"<U{self.longest_str_detection}");
         for i, header in enumerate(self.header_bbox):
             header_img = cv.rectangle(header_img, tuple((header[:2] - header[2:]/2).astype(np.int32)), tuple((header[:2] + header[2:]/2).astype(np.int32)), (0,0,255), 1);
@@ -205,6 +205,12 @@ class Invoicer:
         change = True;
         count = 1;
         row = 0;
+        str_info = {
+        #    "order": [[]] * len(self.keys), do not use this because changing one value affects all the others
+        #    "length": [[]] * len(self.keys)
+            "order": [ []  for i in range(len(self.keys))],
+            "length": [ []  for i in range(len(self.keys))]
+        };
         # print(self.labels);
         for bbox in self.non_header_bbox:
             if(change):
@@ -247,13 +253,36 @@ class Invoicer:
                             key = self.keys[i - j];
                         else:
                             key = self.keys[i + j];
+                        
                         if(variance < thresh_v and len(self.dict[key]) > row):
-                            self.dict[key][row] += string;
+                            np_order = np.array(str_info["order"][self.keys.index(key)][row]);
+                            np_length = np.array(str_info["length"][self.keys.index(key)][row]);
+                            bbox_x = bbox[0];
+                            if(j):
+                                if(back_column):
+                                    bbox_x = (bbox[0] - pow(str_density, -1) * len(string));
+                                else:
+                                    bbox_x = (bbox[0] + pow(str_density, -1) * len(string));
+                            bool_mat = np_order < bbox_x;
+                            b_str = np_length[bool_mat].sum();
+                            self.dict[key][row] = self.dict[key][row][:b_str] + string + self.dict[key][row][b_str:];
+                            str_info["order"][self.keys.index(key)][row].insert(bool_mat.sum(), bbox_x);
+                            str_info["length"][self.keys.index(key)][row].insert(bool_mat.sum(), len(string));
                         else:
                             diff = abs(len(self.dict[key]) - row);
                             for i in range(diff):
                                 self.dict[key].append(None);
+                                str_info["order"][self.keys.index(key)].append([]);
+                                str_info["length"][self.keys.index(key)].append([]);
                             self.dict[key].append(string);
+                            if(j):
+                                if(back_column):
+                                    str_info["order"][self.keys.index(key)].append([bbox[0] - pow(str_density, -1) * len(string)]);
+                                else:
+                                    str_info["order"][self.keys.index(key)].append([bbox[0] + pow(str_density, -1) * len(string)]);
+                            else:
+                                str_info["order"][self.keys.index(key)].append([bbox[0]]);
+                            str_info["length"][self.keys.index(key)].append([len(string)]); 
                     break;
             count += 1;
         # make sure all arrays are the same length
@@ -339,3 +368,4 @@ class Invoicer:
         if(not round(count_notna / len(self.dict.keys()))):
             for key in self.dict.keys(): 
                 self.dict[key].pop();
+        print(str_info["order"][self.keys.index("City")]);
