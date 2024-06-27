@@ -1,6 +1,7 @@
 import pandas as pd
 import pathlib
 import numpy as np
+from fuzzywuzzy import fuzz
 
 class DataHandler:
     def __init__(self, dictionary, existing_file=None) -> None:
@@ -39,7 +40,7 @@ class DataHandler:
                 bool_mat *= pd.notna(self.df[key]);
         with pd.ExcelWriter(file_name, date_format="MM/DD/YYYY") as writer:
             self.df[bool_mat].to_excel(writer);
-    def compare(self, comparison_file_path, file_name="unpaid.xlsx", price_diff=0.05):
+    def compare(self, comparison_file_path, file_name="unpaid.xlsx", price_diff=0.05, string_diff=60):
         cdf = pd.read_excel(comparison_file_path, skiprows=12, usecols=lambda col: "unnamed" not in col.lower());
         # clean the cdf up a little bit
         # the total number of transactions is at the end of the close date column so get that number
@@ -54,15 +55,16 @@ class DataHandler:
         # try to match every row in the cdf a row in the df
         # match by close date and invoice number for now
         unmatched = [];
-        for i, (date, amnt, invoice) in enumerate(zip(self.cdf["Close Date"], self.cdf["Invoiced Amount"], self.cdf["Invoice Number"])):
-            cmp = pd.Series(data=[date, amnt, invoice]);
+        for i, (date, amnt, invoice, account) in enumerate(zip(self.cdf["Close Date"], self.cdf["Invoiced Amount"], self.cdf["Invoice Number"], self.cdf["Account Name"])):
+            cmp = pd.Series(data=[date, amnt, invoice, account]);
             bool1 = pd.Series(data=[1] * len(self.df), dtype=bool);
             for index, item in enumerate(cmp):
                 if(pd.notna(item)):
                     match index:
                         # date
                         case 0:
-                            bool1 *= (item == self.df["Invoice Date"]);
+                            pass;
+                            # bool1 *= (item == self.df["Invoice Date"]);
                         # invoice amount
                         case 1:
                             # price or net price (have to match)
@@ -71,6 +73,8 @@ class DataHandler:
                         # invoice number
                         case 2:
                             bool1 *= (item == self.df["Invoice"]);
+                        case 3:
+                            bool1 *= self.df.loc[: ,"Customer"].map(lambda element: fuzz.partial_ratio(element.upper().replace(" ", ""), item.upper().replace(" ", ''))) > string_diff;
                 bool1.fillna(0, inplace=True);
             bool1 = bool1.astype(dtype=bool);
             if(not bool1.sum()): 
