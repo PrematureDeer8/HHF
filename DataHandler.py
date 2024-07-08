@@ -2,6 +2,8 @@ import pandas as pd
 import pathlib
 import numpy as np
 from fuzzywuzzy import fuzz
+import cv2 as cv
+from invoice import Invoicer
 
 class DataHandler:
     def __init__(self, dictionary, existing_file=None) -> None:
@@ -43,7 +45,23 @@ class DataHandler:
                 worksheet.set_column(hidden_col[0], hidden_col[0], hidden_col[1]);
                 # worksheet.save();
 
-
+    def img_info(self, bool_mat):
+        for i, metadata in enumerate(self.df.loc[bool_mat, "metadata"]):
+            # metadata: "['img_path', [ymin, ymax]]"
+            # with eval metadata(str) turns it back into metadata(list)
+            metadata = eval(metadata);
+            row_num = self.df.loc[bool_mat].index[i];
+            detailer = Invoicer(metadata[0], ocr=False);
+            # if(not path.exists()):
+            #     print(f"Image path for row {row_num} does not exist!");
+            #     continue;
+            detailer.table_outline(crop_amount=10);
+            detailer.align_table();
+            src_img = detailer.table_only;
+            cropped_img = np.empty(shape=(0,src_img.shape[1],3));
+            for ymin, ymax in metadata[1:]:
+                cropped_img = np.append(src_img[int(ymin):int(ymax)], cropped_img, axis=0);
+            cv.imwrite(f"row{row_num}.jpg", cropped_img);
     def compare(self, comparison_file_path, file_name="unpaid.xlsx", price_diff=0.05, string_diff=60):
         cdf = pd.read_excel(comparison_file_path, skiprows=12, usecols=lambda col: "unnamed" not in col.lower());
         # clean the cdf up a little bit
@@ -96,6 +114,7 @@ class DataHandler:
             if(bool_mat.sum() > 1):
                 zero_index = self.df[bool_mat].index[0];
                 for index in self.df[bool_mat].index[1:]:
+                    self.df.loc[zero_index, "metadata"]
                     # we assume that the % commission  stays the same for these invoices (among other things)
                     for key in ["Price", "Net Price", "$ Commissions Sales", "Commission Payments"]:
                         self.df.loc[zero_index, key] += self.df.loc[index, key];

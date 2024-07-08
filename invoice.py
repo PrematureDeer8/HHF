@@ -1,4 +1,3 @@
-import easyocr
 import cv2 as cv
 import pandas as pd
 import pathlib
@@ -8,8 +7,10 @@ from dateutil import parser
 from datetime import datetime
 
 class Invoicer:
-    def __init__(self, image_file, debug=False):
-        self.reader = easyocr.Reader(['en']);
+    def __init__(self, image_file, debug=False, ocr=True):
+        if(ocr):
+            import easyocr
+            self.reader = easyocr.Reader(['en']);
         self.imfp = pathlib.Path(image_file);
         self.debug = debug;
         if(not self.imfp.exists()):
