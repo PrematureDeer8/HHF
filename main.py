@@ -4,6 +4,7 @@ import cv2 as cv
 import numpy as np
 from invoice import Invoicer
 from DataHandler import DataHandler
+import pandas as pd
 
 
 class Point(Structure):
@@ -84,7 +85,9 @@ def main():
             data_handle = DataHandler(invoice.dict, "ardent.xlsx");
         else:
             data_handle = DataHandler(invoice.dict);
-        data_handle.write(filter={"Recieved": "== 'YES'","Commission Payments": "!= 0"}, comparison=0);
-        # break;
+        data_handle.df.loc[:, "Commission Payments"] = pd.to_numeric(data_handle.df.loc[:, "Commission Payments"]);
+        # data_handle.write(filter={"Recieved": "== 'YES'","Commission Payments": "!= 0"}, comparison=0);
+        data_handle.write(hidden_col=[len(invoice.dict.keys()), 0]);
+        break;
 if( __name__ == "__main__"):
     main();

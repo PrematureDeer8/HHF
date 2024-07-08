@@ -217,8 +217,3 @@ Column columnAlgorithm(int cols, int img[][cols] ,Rectangle* bbox){
     col.x2 = expand.x2;
     return col;
 }
-// how well do these strings overlap 
-float string_match(char* str1, char* str2){
-    // alignment (number of letters in the same spot)
-    
-}

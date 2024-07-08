@@ -211,6 +211,9 @@ class Invoicer:
             "order": [ []  for i in range(len(self.keys))],
             "length": [ []  for i in range(len(self.keys))]
         };
+        # row crop
+        # row_crop = [np.inf, 0];
+        row_crop = np.array([[np.inf, 0]]);
         # print(self.labels);
         for bbox in self.non_header_bbox:
             if(change):
@@ -222,6 +225,9 @@ class Invoicer:
                 change = True;
                 count = 0;
                 row += 1;
+                row_crop = np.append(row_crop, [[np.inf, 0]], axis=0);
+            row_crop[row][0] = round(min(row_crop[row][0], bbox[1] - 0.5 * bbox[3]));
+            row_crop[row][1] = round(max(row_crop[row][1], bbox[1] + 0.5 * bbox[3]));
             # print(variance);
             info = str(self.labels[(self.bbox == bbox).all(axis=1)].squeeze());
             # print(info);
@@ -364,8 +370,11 @@ class Invoicer:
                     self.dict[key].append(None);
         # dont remove last row if it is not a total 
         # print(self.dict);
+        self.dict["metadata"] = [[str(self.imfp.absolute()), list(row)] for row in row_crop];
         count_notna = pd.Series(data=[self.dict[key][max_length - 1] for key in self.dict.keys()]).count();
         if(not round(count_notna / len(self.dict.keys()))):
             for key in self.dict.keys(): 
                 self.dict[key].pop();
-        print(str_info["order"][self.keys.index("City")]);
+
+        # print(str_info["order"][self.keys.index("City")]);
+        

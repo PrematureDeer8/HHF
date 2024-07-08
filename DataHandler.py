@@ -18,10 +18,8 @@ class DataHandler:
 
         else:
             self.df = self.new_data;
-        # make sure commission payments are NaN
-        self.df["Commission Payments"] = pd.to_numeric(self.df["Commission Payments"]);
     # write to excel file
-    def write(self, filter=None, file_name="ardent.xlsx", comparison=1):
+    def write(self, filter=None, file_name="ardent.xlsx", comparison=1, hidden_col=None):
         bool_mat = pd.Series(data=[1 for i in range(len(self.df))], dtype=bool);
         if(not comparison):
             bool_mat = ~bool_mat;
@@ -38,8 +36,14 @@ class DataHandler:
                     # print(pd.DataFrame(data=(bool_mat, self.df[key])));
                 # nan values wont be considered (by default)
                 bool_mat *= pd.notna(self.df[key]);
-        with pd.ExcelWriter(file_name, date_format="MM/DD/YYYY") as writer:
-            self.df[bool_mat].to_excel(writer);
+        with pd.ExcelWriter(file_name, date_format="MM/DD/YYYY", engine="xlsxwriter") as writer:
+            self.df[bool_mat].to_excel(writer, sheet_name='Sheet1');
+            if(hidden_col is not None):
+                worksheet = writer.sheets['Sheet1'];
+                worksheet.set_column(hidden_col[0], hidden_col[0], hidden_col[1]);
+                # worksheet.save();
+
+
     def compare(self, comparison_file_path, file_name="unpaid.xlsx", price_diff=0.05, string_diff=60):
         cdf = pd.read_excel(comparison_file_path, skiprows=12, usecols=lambda col: "unnamed" not in col.lower());
         # clean the cdf up a little bit
@@ -97,5 +101,3 @@ class DataHandler:
                         self.df.loc[zero_index, key] += self.df.loc[index, key];
                     self.df.drop(axis=0, index=index, inplace=True);
         self.df.reset_index(inplace=True);
-
-
