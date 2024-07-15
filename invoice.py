@@ -5,6 +5,8 @@ import numpy as np
 import string
 from dateutil import parser
 from datetime import datetime
+from fuzzywuzzy import fuzz
+from scipy.optimize import linear_sum_assignment
 
 class Invoicer:
     def __init__(self, image_file, debug=False, ocr=True):
@@ -35,7 +37,7 @@ class Invoicer:
                      "% Rebates": [],
                      "$ Rebates": [],
                      "% Commissions Sales": [],
-                     "$ Commissions Sales": [],
+                     "Commissions Sales": [],
                      "Recieved": [],
                      "Commission Payments": []
                      };
@@ -178,6 +180,7 @@ class Invoicer:
         bbox_header = [];
         header_bbox = self.header_bbox.copy();
         header_labels = self.header_labels.copy();
+        self.keyheaders = [];
         # organize the headers into their respective keys
         while(header_bbox.shape[0]): 
             # draw a vertical line
@@ -191,6 +194,7 @@ class Invoicer:
             # sort by height
             for string, _ in sorted(zip(header_labels[bool1 * bool2], header_bbox[(bool1 * bool2)]), key=lambda a: a[1][1]):
                 key += string;
+            self.keyheaders.append(key);
             bboxs = header_bbox[(bool1 * bool2)];
             x_min = (bboxs[..., 0] - bboxs[...,2] * 0.5).min();
             x_max = (bboxs[..., 0] + bboxs[...,2] * 0.5).max();
@@ -212,6 +216,22 @@ class Invoicer:
             "order": [ []  for i in range(len(self.keys))],
             "length": [ []  for i in range(len(self.keys))]
         };
+        hung_mat = [];
+        print(self.keyheaders)
+        if(len(self.keyheaders) != len(self.keys)):
+            for headerkey in self.keyheaders:
+                mapped = map(lambda str1, str2: fuzz.ratio(str1.replace(" ","").upper(), str2.replace(" ", "").upper()), self.keys, [headerkey] * len(self.keys));
+                hung_mat.append(list(mapped));
+            
+            # add a row of zeros to make a s
+            hung_mat = 100 - np.array(hung_mat);
+            r_ind, c_ind = linear_sum_assignment(hung_mat);
+            # print(r_ind, c_ind);
+            self.dict = {};
+            for c in c_ind:
+                self.dict[self.keys[c]] = [];
+            self.keys = list(self.dict.keys());
+
         # row crop
         # row_crop = [np.inf, 0];
         row_crop = np.array([[np.inf, 0]]);
@@ -318,8 +338,8 @@ class Invoicer:
                                 new_date_str += letter;
                         self.dict[key][i] = datetime.strptime(new_date_str, "%m%d%Y").date();
             # Dollar amounts
-            if(k == 11   or k == 14  or k == 19 \
-               or k == 21 or k == 17):
+            if(key == "Price"   or key == "Net Price"  or key == "Commissions Sales" \
+               or key == 'Commission Payments' or key == '$ Rebates'):
                 # convert any entries into their respective numerical values
                 for i, entry in enumerate(self.dict[key]):
                     if(entry == None):
@@ -342,7 +362,7 @@ class Invoicer:
                         else:
                             switch = False;
                     self.dict[key][i] = num / pow(10, after_dec) * negative;
-            elif(k == 0 or k == 2):
+            elif(key == "Order" or key == "Invoice"):
                 for i, entry in enumerate(self.dict[key]):
                     try:
                         # this is potentially dangerous

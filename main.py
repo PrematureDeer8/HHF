@@ -22,7 +22,7 @@ def main():
     for count, img_path in enumerate(folder_path.iterdir()):
         if(img_path.suffix != ".jpg"):
             continue;
-        # img_path = pathlib.Path("/Users/gabrieltorres/Desktop/ardent_inv_scans/scan0008.jpg");
+        img_path = pathlib.Path("/Users/gabrieltorres/Desktop/ardent_inv_scans/scan0018.jpg");
         print(img_path);
         invoice = Invoicer(str(img_path.absolute()), debug=True);
         invoice.table_outline(crop_amount=0);
@@ -74,11 +74,18 @@ def main():
             column = libObject.columnAlgorithm(c_int(cols), data , pointer(rect))
             if(i == 0 or (abs(column.x1 - columns[-1].x1) > 5 or abs(column.x2 - columns[-1].x2) > 5)):
                 columns.append(column);
+            else:
+                invoice.keyheaders[i - 1] += invoice.keyheaders[i];
+                invoice.keyheaders[i] = None;
+
+        for i in range(invoice.keyheaders.count(None)):
+            invoice.keyheaders.remove(None);
             # print(columns[-1].x1, columns[-1].x2);
         for column in columns:
             cv.line(invoice.table_only, (int(column.x1), 0), (int(column.x1), invoice.table_only.shape[0]),(0,0,255), 2);
             cv.line(invoice.table_only, (int(column.x2), 0), (int(column.x2), invoice.table_only.shape[0]),(0,0,255), 2);
         cv.imwrite("dst.jpg", invoice.table_only)
+        # print(invoice.header_labels);
         invoice.load_dict(columns);
         # print(invoice.dict);
         if(count):
@@ -86,8 +93,8 @@ def main():
         else:
             data_handle = DataHandler(invoice.dict);
         data_handle.df.loc[:, "Commission Payments"] = pd.to_numeric(data_handle.df.loc[:, "Commission Payments"]);
-        # data_handle.write(filter={"Recieved": "== 'YES'","Commission Payments": "!= 0"}, comparison=0);
-        data_handle.write(hidden_col=[len(invoice.dict.keys()), 0]);
+        data_handle.write(filter={"Recieved": "== 'YES'", "Commission Payments": "!= 0"}, comparison=0, hidden_col=[list(data_handle.df.columns.values).index("metadata") + 1,0]);
+        # print(data_handle.df.columns);
         break;
 if( __name__ == "__main__"):
     main();

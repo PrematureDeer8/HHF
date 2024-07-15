@@ -116,7 +116,7 @@ class DataHandler:
                 for index in self.df[bool_mat].index[1:]:
                     self.df.loc[zero_index, "metadata"]
                     # we assume that the % commission  stays the same for these invoices (among other things)
-                    for key in ["Price", "Net Price", "$ Commissions Sales", "Commission Payments"]:
+                    for key in ["Price", "Net Price", "Commissions Sales", "Commission Payments"]:
                         self.df.loc[zero_index, key] += self.df.loc[index, key];
                     self.df.drop(axis=0, index=index, inplace=True);
         self.df.reset_index(inplace=True);
