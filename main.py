@@ -18,11 +18,11 @@ class Column(Structure):
 
 def main():
     libObject = cdll.LoadLibrary("./header_outline.so");
-    folder_path = pathlib.Path.home() / "Desktop" / "ardent_inv_scans";
-    for count, img_path in enumerate(folder_path.iterdir()):
-        if(img_path.suffix != ".jpg"):
+    folder_path = pathlib.Path.home() / "Desktop" / "ardent_inv_scans2021";
+    for count, img_path in enumerate(folder_path.iterdir(),1):
+        if(img_path.suffix != ".jpg" and img_path.suffix != ".png"):
             continue;
-        img_path = pathlib.Path("/Users/gabrieltorres/Desktop/ardent_inv_scans/scan0018.jpg");
+        # img_path = folder_path / "scan0052.jpg";
         print(img_path);
         invoice = Invoicer(str(img_path.absolute()), debug=True);
         invoice.table_outline(crop_amount=0);
@@ -33,14 +33,14 @@ def main():
         # grayscale and threshold the image
         grayscale = cv.cvtColor(invoice.table_only, cv.COLOR_BGR2GRAY);
         # blur before thresholding
-        blur = cv.blur(grayscale, (7,3));
+        blur = cv.GaussianBlur(grayscale, (7,3),0);
         ret, thresh = cv.threshold(blur, 180, 255, 0);
         cv.imwrite("thresh.jpg", thresh);
         # get starting point
         flat = thresh.flatten();
-        zero_only = flat == 0;
-        indices = np.arange(len(flat));
-        start_pt = np.unravel_index(min(indices[zero_only], key=lambda index: (index // thresh.shape[0]) + 1.2 * (index % thresh.shape[1])), thresh.shape);
+        # zero_only = flat == 0;
+        # indices = np.arange(len(flat));
+        start_pt = min(np.argwhere(thresh == 0), key=lambda index: index.sum());
         print(start_pt);
         c_start_pt = Point(start_pt[1], start_pt[0]);
         rows, cols = thresh.shape;
@@ -71,7 +71,7 @@ def main():
             y_ctr = invoice.header_bbox[i,1::2].sum()/2;
             rect = Rectangle(invoice.header_bbox[i][0].astype(np.int32), int(y_ctr),invoice.header_bbox[i][2].astype(np.int32), int(y_ctr));
             # make sure this not a duplicate column (they should happen consecutively)
-            column = libObject.columnAlgorithm(c_int(cols), data , pointer(rect))
+            column = libObject.columnAlgorithm(c_int(cols), data , pointer(rect));
             if(i == 0 or (abs(column.x1 - columns[-1].x1) > 5 or abs(column.x2 - columns[-1].x2) > 5)):
                 columns.append(column);
             else:
@@ -95,6 +95,6 @@ def main():
         data_handle.df.loc[:, "Commission Payments"] = pd.to_numeric(data_handle.df.loc[:, "Commission Payments"]);
         data_handle.write(filter={"Recieved": "== 'YES'", "Commission Payments": "!= 0"}, comparison=0, hidden_col=[list(data_handle.df.columns.values).index("metadata") + 1,0]);
         # print(data_handle.df.columns);
-        break;
+        # break;
 if( __name__ == "__main__"):
     main();

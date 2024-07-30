@@ -336,7 +336,10 @@ class Invoicer:
                         for letter in self.dict[key][i]:
                             if(letter.isnumeric()):
                                 new_date_str += letter;
-                        self.dict[key][i] = datetime.strptime(new_date_str, "%m%d%Y").date();
+                        try:
+                            self.dict[key][i] = datetime.strptime(new_date_str, "%m%d%Y").date();
+                        except ValueError:
+                            self.dict[key][i] = None;
             # Dollar amounts
             if(key == "Price"   or key == "Net Price"  or key == "Commissions Sales" \
                or key == 'Commission Payments' or key == '$ Rebates'):
