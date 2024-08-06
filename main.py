@@ -5,6 +5,7 @@ import numpy as np
 from invoice import Invoicer
 from DataHandler import DataHandler
 import pandas as pd
+import argparse
 
 
 class Point(Structure):
@@ -17,12 +18,44 @@ class Column(Structure):
     _fields_ = [("x1", c_int), ("x2", c_int)];
 
 def main():
-    libObject = cdll.LoadLibrary("./header_outline.so");
-    folder_path = pathlib.Path.home() / "Desktop" / "ardent_inv_scans2021";
-    for count, img_path in enumerate(folder_path.iterdir(),1):
+    parser = argparse.ArgumentParser(
+        prog="HHF",
+        description="Convert your image files (JPEG, PNG) to EXCEL FILES!",
+
+    );
+    parser.add_argument("document_path", type=str,
+                        help="file or folder path for image(s)");
+    parser.add_argument("--excel_file", type=str,
+                        help="Existing excel file that you want to append to",
+                        default=None);
+    parser.add_argument("--so_file", type=str,
+                        help="Shared Object file for C code!",
+                        default="./header_outline.so");
+    
+    args = parser.parse_args();
+    # validate path
+    for attribute in vars(args):
+        if(getattr(args, attribute) is None or (not("path" in attribute) and not("file" in attribute))):
+            continue;
+        fp = pathlib.Path(getattr(args, attribute));
+        if(not fp.exists()):
+            fp = pathlib.Path.home() / fp;
+            if(not fp.exists()):
+                raise ValueError(f"File path ({fp}) does not exists!");
+        if(attribute == "document_path"):
+            if(fp.is_file()):
+                iterator = [fp];
+            else:
+                iterator = fp.iterdir();
+
+    libObject = cdll.LoadLibrary(args.so_file);
+    print(iterator);
+    start = 1;
+    if(args.excel_file is None):
+        start = 0;
+    for count, img_path in enumerate(iterator, start):
         if(img_path.suffix != ".jpg" and img_path.suffix != ".png"):
             continue;
-        # img_path = folder_path / "scan0052.jpg";
         print(img_path);
         invoice = Invoicer(str(img_path.absolute()), debug=True);
         invoice.table_outline(crop_amount=0);
@@ -93,8 +126,7 @@ def main():
         else:
             data_handle = DataHandler(invoice.dict);
         data_handle.df.loc[:, "Commission Payments"] = pd.to_numeric(data_handle.df.loc[:, "Commission Payments"]);
-        data_handle.write(filter={"Recieved": "== 'YES'", "Commission Payments": "!= 0"}, comparison=0, hidden_col=[list(data_handle.df.columns.values).index("metadata") + 1,0]);
+        data_handle.write(file_name="test.xlsx",filter={"Recieved": "== 'YES'", "Commission Payments": "!= 0"}, comparison=0, hidden_col=[list(data_handle.df.columns.values).index("metadata") + 1,0]);
         # print(data_handle.df.columns);
-        # break;
 if( __name__ == "__main__"):
     main();
