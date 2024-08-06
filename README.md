@@ -18,3 +18,13 @@ Before conducting ocr on the sample image, some preprocessing must be done. In o
 
 
 The last part of the preprocessing step is making sure the table is actually aligned. Meaning that the table isn't rotated in any way. To do this the we use the contours map. The contour map is a array of coordinate points. Each coordinate point corresponds to a place on the outer edge of the table, a part of the outline essentially. The program sorts for contours closest to the top right corner of the table and the top left corner of the table. Then the best 30 of each contours closest to the top right and top left corners are averaged to create a top right and top left corner point. With the top left and top right corner we recreate the top part of the outline of the table by creating a line between those two points. To calculate the angle of the line we simply calculate the slope of the line then arctangent the slope to get the angle of the table. With the angle of the table opencv provides a method to rotate the image such that the table becomes aligned. Since the sample image is already aligned this has no affect.
+
+### OCR
+
+Now with the preprocessing complete, the OCR part of the program can be done. The OCR model used was [EasyOCR](https://github.com/JaidedAI/EasyOCR/tree/master/easyocr). Depending on your image dimensions, the size of your words, and other factors, you will probably need to tweak the hyper-parameters that were implemented for this project to suit your images. When developing, there were numerous tweaks of the hyper-parameters to get [EasyOCR](https://github.com/JaidedAI/EasyOCR/tree/master/easyocr) to read all the words (or almost all!). OCRing our sample image we get: 
+
+
+![annotated](https://github.com/user-attachments/assets/fa361b58-2a4a-4de5-a62e-42d0a809fa2f)
+
+
+### Data Organization
