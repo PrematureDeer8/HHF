@@ -28,3 +28,11 @@ Now with the preprocessing complete, the OCR part of the program can be done. Th
 
 
 ### Data Organization
+
+With the OCR complete, we have to organize the data. The program will first try to find column headers for the data. In order to do this we need to approximate how many text detections compose the column headers. Just by counting the number of columns, there are 23 (this was done manually). Therefore the number of text detection is around that number and so the parameter to approximate the number of text detections was set to 30. Its important to note that this parameter should always underestimate the true number of text detections that compose the column headers. With the parameter set, we sort the text detections by height and pick the first 30. Here is the sample image on the first 30: 
+
+
+![candidate](https://github.com/user-attachments/assets/67b9da5a-47dc-4061-a7e9-bc39607214bc)
+
+
+Now that we have our first 30 candidates, we draw a line of best fit across the center points of all the candidate boxes.
