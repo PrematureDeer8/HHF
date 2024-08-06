@@ -53,6 +53,7 @@ def main():
     start = 1;
     if(args.excel_file is None):
         start = 0;
+        args.excel_file = "output.xlsx";
     for count, img_path in enumerate(iterator, start):
         if(img_path.suffix != ".jpg" and img_path.suffix != ".png"):
             continue;
@@ -122,11 +123,11 @@ def main():
         invoice.load_dict(columns);
         # print(invoice.dict);
         if(count):
-            data_handle = DataHandler(invoice.dict, "ardent.xlsx");
+            data_handle = DataHandler(invoice.dict, args.excel_file);
         else:
             data_handle = DataHandler(invoice.dict);
         data_handle.df.loc[:, "Commission Payments"] = pd.to_numeric(data_handle.df.loc[:, "Commission Payments"]);
-        data_handle.write(file_name="test.xlsx",filter={"Recieved": "== 'YES'", "Commission Payments": "!= 0"}, comparison=0, hidden_col=[list(data_handle.df.columns.values).index("metadata") + 1,0]);
+        data_handle.write(file_name=args.excel_file,filter={"Recieved": "== 'YES'", "Commission Payments": "!= 0"}, comparison=0, hidden_col=[list(data_handle.df.columns.values).index("metadata") + 1,0]);
         # print(data_handle.df.columns);
 if( __name__ == "__main__"):
     main();
